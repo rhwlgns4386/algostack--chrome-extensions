@@ -46,6 +46,55 @@
       };
     }
 
+    if (host.includes("programmers.co.kr")) {
+      console.log("🔍 [Programmers] Sniffing on:", location.href);
+      console.log("🔍 [Programmers] Pathname:", location.pathname);
+      
+      const m = location.pathname.match(/\/lessons\/(\d+)/);
+      const id = m ? Number(m[1]) : null;
+      console.log("🔍 [Programmers] Extracted ID:", id, "from match:", m);
+      
+      let title = null;
+      // 문제 제목 찾기 - 여러 셀렉터 시도
+      const titleSelectors = [
+        '.lesson-title',
+        '.problem-title', 
+        '[class*="title"]',
+        'h1',
+        'h2'
+      ];
+      
+      console.log("🔍 [Programmers] Looking for title with selectors:", titleSelectors);
+      
+      for (const selector of titleSelectors) {
+        const titleEl = document.querySelector(selector);
+        console.log(`🔍 [Programmers] Selector ${selector}:`, titleEl ? titleEl.textContent.trim() : 'not found');
+        if (titleEl && titleEl.textContent.trim()) {
+          title = titleEl.textContent.trim();
+          console.log("✅ [Programmers] Found title:", title);
+          break;
+        }
+      }
+      
+      // 타이틀에서 불필요한 부분 제거
+      if (title) {
+        const originalTitle = title;
+        title = title.replace(/^\d+\.\s*/, ''); // 앞에 숫자. 제거
+        title = title.replace(/\s*-\s*프로그래머스$/, ''); // 뒤에 - 프로그래머스 제거
+        console.log("🔍 [Programmers] Title cleaned:", originalTitle, "→", title);
+      }
+
+      const result = {
+        platform: "PROGRAMMERS",
+        id,
+        title,
+        url: location.href
+      };
+      
+      console.log("🔍 [Programmers] Final sniff result:", result);
+      return result;
+    }
+
     return null;
   }
 
@@ -603,6 +652,203 @@
     try { hookStatusPage(); } catch {}
   }
 
+  // Programmers detector
+  function initProgrammersWatcher() {
+    console.log("🔍 [Programmers] Checking if should init watcher...");
+    console.log("🔍 [Programmers] Hostname:", location.hostname);
+    console.log("🔍 [Programmers] Pathname:", location.pathname);
+    
+    if (!location.hostname.includes("programmers.co.kr")) {
+      console.log("❌ [Programmers] Not on programmers.co.kr domain");
+      return;
+    }
+    if (!location.pathname.includes("/lessons/")) {
+      console.log("❌ [Programmers] Not on lessons page");
+      return;
+    }
+    
+    console.log("🚀 [Programmers] Watcher started!");
+    
+    let awaiting = false;
+
+    function programmersInfo() {
+      return sniff();
+    }
+
+
+    function scanForPopupVerdict() {
+      if (!awaiting) {
+        console.log("🔍 [Programmers] Not awaiting, skip scan");
+        return;
+      }
+      
+      console.log("🔍 [Programmers] Scanning for popup verdict...");
+      
+      // 팝업/모달 셀렉터들 (간단하게)
+      const popupSelectors = [
+        '.modal',
+        '.modal-content', 
+        '.modal-body',
+        '[class*="modal"]',
+        '[class*="popup"]',
+        '[class*="dialog"]',
+        'div[role="dialog"]',
+        'div[role="alert"]'
+      ];
+      
+      for (const selector of popupSelectors) {
+        const popups = document.querySelectorAll(selector);
+        console.log(`🔍 [Programmers] Checking ${selector}: ${popups.length} popups`);
+        
+        for (const popup of popups) {
+          // 팝업이 보이는지 확인
+          const style = getComputedStyle(popup);
+          const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+          
+          if (!isVisible) {
+            console.log("⏸️ [Programmers] Popup not visible, skipping");
+            continue;
+          }
+          
+          const popupText = popup.textContent || "";
+          console.log(`🔍 [Programmers] Popup text: "${popupText}"`);
+          
+          // 간단한 정답/오답 판정
+          let verdict = null;
+          
+          if (popupText.includes("정답")) {
+            console.log("✅ [Programmers] Found '정답' in popup!");
+            verdict = "SUCCESS";
+          } else if (popupText.includes("틀렸") || popupText.includes("실패") || popupText.includes("오답")) {
+            console.log("❌ [Programmers] Found failure text in popup!");
+            verdict = "FAIL";
+          }
+          
+          if (verdict) {
+            console.log("🎯 [Programmers] Popup verdict:", verdict);
+            const info = programmersInfo();
+            console.log("🎯 [Programmers] Problem info:", info);
+            
+            if (info && info.id && info.title) {
+              console.log("✅ [Programmers] Sending record...");
+              sendCreate({ 
+                id: info.id, 
+                title: info.title, 
+                platform: "PROGRAMMERS", 
+                result: verdict, 
+                url: info.url 
+              });
+              awaiting = false;
+              return;
+            }
+          }
+        }
+      }
+      
+      console.log("❌ [Programmers] No popup verdict found");
+    }
+
+    // 제출 버튼 감지
+    const observer = new MutationObserver(() => {
+      console.log("🔍 [Programmers] Scanning for submit buttons...");
+      
+      const submitSelectors = [
+        'button[class*="submit"]',
+        'button[class*="Submit"]', 
+        'button[class*="실행"]',
+        'button[class*="채점"]',
+        '[class*="submit-btn"]',
+        '[class*="run-btn"]'
+      ];
+      
+      console.log("🔍 [Programmers] Using selectors:", submitSelectors);
+      
+      let btn = null;
+      for (const selector of submitSelectors) {
+        try {
+          btn = document.querySelector(selector);
+          console.log(`🔍 [Programmers] Selector ${selector}:`, btn ? "found" : "not found");
+          if (btn) break;
+        } catch (e) {
+          console.log(`❌ [Programmers] Error with selector ${selector}:`, e);
+        }
+      }
+      
+      // 텍스트로 찾기
+      if (!btn) {
+        console.log("🔍 [Programmers] No selector match, scanning all buttons by text...");
+        const buttons = document.querySelectorAll('button');
+        console.log(`🔍 [Programmers] Found ${buttons.length} total buttons`);
+        
+        // 모든 버튼 텍스트를 한눈에 보기
+        const buttonTexts = Array.from(buttons).map((b, i) => `${i}: "${b.textContent?.trim() || ""}"`);
+        console.log(`🔍 [Programmers] All button texts:`, buttonTexts);
+        
+        for (const button of buttons) {
+          const text = button.textContent?.toLowerCase().trim() || "";
+          const originalText = button.textContent?.trim() || "";
+          
+          // 제출 버튼만 찾기 (코드 실행은 제외)
+          if (text.includes("제출") && !text.includes("예시")) {
+            console.log("✅ [Programmers] Found SUBMIT button by text:", originalText);
+            btn = button;
+            break;
+          }
+        }
+        
+        // 제출 버튼이 없으면 실행 버튼이라도 찾기
+        if (!btn) {
+          console.log("⚠️ [Programmers] No submit button found, looking for run button...");
+          for (const button of buttons) {
+            const text = button.textContent?.toLowerCase().trim() || "";
+            const originalText = button.textContent?.trim() || "";
+            
+            if ((text.includes("실행") || text.includes("채점")) && !text.includes("예시")) {
+              console.log("⚠️ [Programmers] Found RUN button by text:", originalText);
+              btn = button;
+              break;
+            }
+          }
+        }
+      }
+      
+      if (btn && !btn.__algostack_hooked) {
+        console.log("✅ [Programmers] Hooking submit button:", btn);
+        btn.__algostack_hooked = true;
+        
+        const arm = () => {
+          console.log("🚨 [Programmers] Submit clicked!");
+          awaiting = true;
+          
+          setTimeout(() => { 
+            if (awaiting) {
+              console.log("⏰ [Programmers] Timeout - no result detected");
+              awaiting = false; 
+            }
+          }, 30000);
+        };
+        
+        btn.addEventListener('click', arm, true);
+      } else if (btn && btn.__algostack_hooked) {
+        console.log("⚠️ [Programmers] Button already hooked");
+      } else {
+        console.log("❌ [Programmers] No submit button found");
+      }
+    });
+    
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+
+    const verdictObserver = new MutationObserver(() => {
+      console.log("🔍 [Programmers] DOM changed, checking for popup verdict... awaiting:", awaiting);
+      if (awaiting) {
+        scanForPopupVerdict();
+      }
+    });
+    verdictObserver.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+    
+    console.log("✅ [Programmers] All observers setup complete!");
+  }
+
   try { 
     initLeetCodeWatcher(); 
   } catch (e) {
@@ -613,5 +859,11 @@
     initBOJWatcher(); 
   } catch (e) {
     console.error("❌ BOJ watcher failed:", e);
+  }
+  
+  try { 
+    initProgrammersWatcher(); 
+  } catch (e) {
+    console.error("❌ Programmers watcher failed:", e);
   }
 })();

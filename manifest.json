@@ -23,13 +23,15 @@
     "https://api.algostack.com/*",
     "http://localhost:8080/*",
     "https://leetcode.com/*",
-    "https://www.acmicpc.net/*"
+    "https://www.acmicpc.net/*",
+    "https://school.programmers.co.kr/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://leetcode.com/*",
-        "https://www.acmicpc.net/*"
+        "https://www.acmicpc.net/*",
+        "https://school.programmers.co.kr/*"
       ],
       "js": ["src/content.js"],
       "run_at": "document_end"
