@@ -1,6 +1,67 @@
 import { api } from "./api/client.js";
 
+// 주기적으로 content script 상태 체크 및 자동 재주입
+async function ensureContentScriptLoaded() {
+  try {
+    const tabs = await chrome.tabs.query({
+      url: [
+        "https://leetcode.com/*",
+        "https://www.acmicpc.net/*", 
+        "https://school.programmers.co.kr/*"
+      ]
+    });
+
+    for (const tab of tabs) {
+      try {
+        // content script가 살아있는지 체크
+        const response = await chrome.tabs.sendMessage(tab.id, { type: "HEALTH_CHECK" });
+        if (!response || !response.alive) {
+          throw new Error("Content script not responding");
+        }
+      } catch (error) {
+        // content script가 없거나 응답하지 않으면 재주입
+        console.log(`🔄 Reinjecting content script to tab ${tab.id}:`, tab.url);
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ["src/content.js"]
+          });
+        } catch (injectError) {
+          console.error("Failed to reinject content script:", injectError);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error in ensureContentScriptLoaded:", error);
+  }
+}
+
+// 30초마다 content script 상태 체크
+setInterval(ensureContentScriptLoaded, 30000);
+
+// 탭 업데이트 시에도 체크
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url) {
+    const supportedSites = [
+      "https://leetcode.com/",
+      "https://www.acmicpc.net/",
+      "https://school.programmers.co.kr/"
+    ];
+    
+    if (supportedSites.some(site => tab.url.startsWith(site))) {
+      // 1초 후 체크 (페이지 로딩 완료 대기)
+      setTimeout(() => ensureContentScriptLoaded(), 1000);
+    }
+  }
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  // Health check 응답
+  if (msg?.type === "HEALTH_CHECK") {
+    sendResponse({ alive: true });
+    return true;
+  }
+
   if (msg?.type === "GET_CONFIG") {
     api.getConfig().then(cfg => sendResponse({ ok: true, cfg })).catch(e => sendResponse({ ok: false, error: String(e) }));
     return true;

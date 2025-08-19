@@ -1,6 +1,51 @@
 (function () {
   console.log("🚀 AlgoStack content.js loaded!");
   
+  // 확장프로그램 상태 모니터링
+  let healthCheckInterval = null;
+  let isExtensionHealthy = true;
+  
+  function startHealthMonitoring() {
+    if (healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+    }
+    
+    // 10초마다 확장프로그램 상태 체크
+    healthCheckInterval = setInterval(async () => {
+      try {
+        if (!chrome.runtime?.id) {
+          if (isExtensionHealthy) {
+            console.warn("⚠️ Extension context lost, monitoring for recovery...");
+            isExtensionHealthy = false;
+          }
+          return;
+        }
+        
+        // 이전에 unhealthy였다가 다시 healthy가 되었을 때
+        if (!isExtensionHealthy) {
+          console.log("✅ Extension context recovered!");
+          isExtensionHealthy = true;
+        }
+        
+      } catch (error) {
+        if (isExtensionHealthy) {
+          console.warn("⚠️ Extension health check failed:", error.message);
+          isExtensionHealthy = false;
+        }
+      }
+    }, 10000);
+  }
+  
+  // 페이지 언로드 시 정리
+  window.addEventListener('beforeunload', () => {
+    if (healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+    }
+  });
+  
+  // 상태 모니터링 시작
+  startHealthMonitoring();
+  
   document.addEventListener('visibilitychange', () => {});
   
   function sniff() {
@@ -86,6 +131,10 @@
   }
 
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg?.type === "HEALTH_CHECK") {
+      sendResponse({ alive: true });
+      return true;
+    }
     if (msg?.type === "SNIFF_PROBLEM") {
       sendResponse({ ok: true, data: sniff() });
       return true;
@@ -110,6 +159,42 @@
     return recentlySent.has(makeKey(payload));
   }
 
+  // 컨텍스트 복구 시도
+  let reconnectAttempts = 0;
+  const MAX_RECONNECT_ATTEMPTS = 3;
+  
+  function attemptReconnect() {
+    return new Promise((resolve) => {
+      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        resolve(false);
+        return;
+      }
+      
+      reconnectAttempts++;
+      console.log(`🔄 Attempting to reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+      
+      // 간단한 health check 시도
+      try {
+        if (chrome.runtime?.id) {
+          chrome.runtime.sendMessage({ type: "HEALTH_CHECK" }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.log("❌ Reconnect failed:", chrome.runtime.lastError.message);
+              setTimeout(() => resolve(attemptReconnect()), 2000); // 2초 후 재시도
+            } else {
+              console.log("✅ Reconnected successfully");
+              reconnectAttempts = 0; // 성공 시 카운터 리셋
+              resolve(true);
+            }
+          });
+        } else {
+          setTimeout(() => resolve(attemptReconnect()), 2000);
+        }
+      } catch (error) {
+        setTimeout(() => resolve(attemptReconnect()), 2000);
+      }
+    });
+  }
+
   async function sendCreate(payload) {
     if (!payload || !payload.id || !payload.title || !payload.platform || !payload.result || !payload.url) {
       return;
@@ -131,31 +216,60 @@
       // 설정을 읽을 수 없으면 기본적으로 활성화된 것으로 처리
     }
     
-    // Extension context invalidated 에러 방지
-    try {
-      if (!chrome.runtime?.id) {
-        console.error("❌ Extension context invalidated - please refresh page");
-        return;
-      }
-      
-      chrome.runtime.sendMessage({ type: "CREATE_RECORD", payload }, (resp) => {
-        if (chrome.runtime.lastError) {
-          if (chrome.runtime.lastError.message.includes("Extension context invalidated")) {
-            console.error("🔄 Extension reloaded - please refresh page");
+    // Extension context 체크 및 복구 시도
+    async function trySendMessage() {
+      try {
+        if (!chrome.runtime?.id) {
+          console.log("❌ Extension context invalidated, attempting reconnect...");
+          const reconnected = await attemptReconnect();
+          if (!reconnected) {
+            console.error("❌ Failed to reconnect extension context");
+            return;
           }
-          return;
         }
         
-        if (resp?.ok && resp?.created === true) {
-          markSent(payload);
-          console.log("✅ Algorithm record saved");
-        } else {
-          console.error("❌ Failed to save record:", resp?.error);
-        }
-      });
+        return new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage({ type: "CREATE_RECORD", payload }, (resp) => {
+            if (chrome.runtime.lastError) {
+              if (chrome.runtime.lastError.message.includes("Extension context invalidated") || 
+                  chrome.runtime.lastError.message.includes("receiving end does not exist")) {
+                reject(new Error("CONTEXT_INVALIDATED"));
+              } else {
+                reject(new Error(chrome.runtime.lastError.message));
+              }
+              return;
+            }
+            
+            if (resp?.ok && resp?.created === true) {
+              markSent(payload);
+              console.log("✅ Algorithm record saved");
+              resolve(resp);
+            } else {
+              console.error("❌ Failed to save record:", resp?.error);
+              reject(new Error(resp?.error || "Unknown error"));
+            }
+          });
+        });
+      } catch (error) {
+        throw error;
+      }
+    }
+    
+    try {
+      await trySendMessage();
     } catch (error) {
-      if (error.message.includes("Extension context invalidated")) {
-        console.error("🔄 Extension reloaded - please refresh page");
+      if (error.message === "CONTEXT_INVALIDATED") {
+        console.log("🔄 Context invalidated, attempting reconnect and retry...");
+        const reconnected = await attemptReconnect();
+        if (reconnected) {
+          try {
+            await trySendMessage(); // 재시도
+          } catch (retryError) {
+            console.error("❌ Retry failed:", retryError.message);
+          }
+        }
+      } else {
+        console.error("❌ Send message failed:", error.message);
       }
     }
   }
