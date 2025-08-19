@@ -1,11 +1,7 @@
 (function () {
   console.log("🚀 AlgoStack content.js loaded!");
   
-  // 전역 Page Visibility 모니터링
-  document.addEventListener('visibilitychange', () => {
-    const status = document.hidden ? 'hidden' : 'visible';
-    console.log(`🔄 [AlgoStack] Tab visibility changed: ${status}`);
-  });
+  document.addEventListener('visibilitychange', () => {});
   
   function sniff() {
     const host = location.hostname;
@@ -53,15 +49,10 @@
     }
 
     if (host.includes("programmers.co.kr")) {
-      console.log("🔍 [Programmers] Sniffing on:", location.href);
-      console.log("🔍 [Programmers] Pathname:", location.pathname);
-      
       const m = location.pathname.match(/\/lessons\/(\d+)/);
       const id = m ? Number(m[1]) : null;
-      console.log("🔍 [Programmers] Extracted ID:", id, "from match:", m);
       
       let title = null;
-      // 문제 제목 찾기 - 여러 셀렉터 시도
       const titleSelectors = [
         '.lesson-title',
         '.problem-title', 
@@ -70,35 +61,25 @@
         'h2'
       ];
       
-      console.log("🔍 [Programmers] Looking for title with selectors:", titleSelectors);
-      
       for (const selector of titleSelectors) {
         const titleEl = document.querySelector(selector);
-        console.log(`🔍 [Programmers] Selector ${selector}:`, titleEl ? titleEl.textContent.trim() : 'not found');
         if (titleEl && titleEl.textContent.trim()) {
           title = titleEl.textContent.trim();
-          console.log("✅ [Programmers] Found title:", title);
           break;
         }
       }
       
-      // 타이틀에서 불필요한 부분 제거
       if (title) {
-        const originalTitle = title;
-        title = title.replace(/^\d+\.\s*/, ''); // 앞에 숫자. 제거
-        title = title.replace(/\s*-\s*프로그래머스$/, ''); // 뒤에 - 프로그래머스 제거
-        console.log("🔍 [Programmers] Title cleaned:", originalTitle, "→", title);
+        title = title.replace(/^\d+\.\s*/, '');
+        title = title.replace(/\s*-\s*프로그래머스$/, '');
       }
 
-      const result = {
+      return {
         platform: "PROGRAMMERS",
         id,
         title,
         url: location.href
       };
-      
-      console.log("🔍 [Programmers] Final sniff result:", result);
-      return result;
     }
 
     return null;
@@ -169,20 +150,8 @@
 
   // LeetCode detector
   function initLeetCodeWatcher() {
-    console.log("🔍 [LeetCode] Checking if should init watcher...");
-    console.log("🔍 [LeetCode] Hostname:", location.hostname);
-    console.log("🔍 [LeetCode] Pathname:", location.pathname);
-    
-    if (!location.hostname.includes("leetcode.com")) {
-      console.log("❌ [LeetCode] Not on leetcode.com domain");
-      return;
-    }
-    if (!location.pathname.includes("/problems/")) {
-      console.log("❌ [LeetCode] Not on problems page");
-      return;
-    }
-    
-    console.log("🚀 [LeetCode] Watcher started!");
+    if (!location.hostname.includes("leetcode.com")) return;
+    if (!location.pathname.includes("/problems/")) return;
     
     let awaiting = false;
     let checkInterval = null;
@@ -248,8 +217,6 @@
     }
 
     function scanVerdict() {
-      const tabStatus = document.hidden ? ' (background tab)' : '';
-      console.log(`🔍 [LeetCode] Scanning verdict${tabStatus}...`);
       
       // LeetCode 탭 구조 기반 결과 감지
       const candidates = [
@@ -310,7 +277,6 @@
               
               // interval 정리
               if (checkInterval) {
-                console.log("🛑 [LeetCode] Clearing check interval after success");
                 clearInterval(checkInterval);
                 checkInterval = null;
               }
@@ -323,7 +289,6 @@
 
     // Watch for submit button clicks to arm the watcher
     const observer = new MutationObserver(() => {
-      console.log("🔍 [LeetCode] Scanning for submit buttons...");
       
       // 실제 LeetCode HTML 기반 submit 버튼 셀렉터 (우선순위 순)
       const submitSelectors = [
@@ -336,16 +301,13 @@
         'button[class*="Submit"]'
       ];
       
-      console.log("🔍 [LeetCode] Using selectors:", submitSelectors);
       
       let btn = null;
       for (const selector of submitSelectors) {
         try {
           btn = document.querySelector(selector);
-          console.log(`🔍 [LeetCode] Selector ${selector}:`, btn ? "found" : "not found");
           if (btn) break;
         } catch (e) {
-          console.log(`❌ [LeetCode] Error with selector ${selector}:`, e);
         }
       }
       
@@ -397,11 +359,8 @@
             clearInterval(checkInterval);
           }
           
-          console.log("🔄 [LeetCode] Starting background check interval");
           checkInterval = setInterval(() => {
             if (awaiting) {
-              const tabStatus = document.hidden ? 'hidden' : 'visible';
-              console.log(`🕐 [LeetCode] Background check (tab: ${tabStatus})...`);
               
               try {
                 scanVerdict();
@@ -409,7 +368,6 @@
                 console.error("❌ [LeetCode] Error in background check:", error);
               }
             } else {
-              console.log("🛑 [LeetCode] Stopping background check");
               clearInterval(checkInterval);
               checkInterval = null;
             }
@@ -427,10 +385,6 @@
         };
         
         btn.addEventListener('click', arm, true);
-      } else if (btn && btn.__algostack_hooked) {
-        console.log("⚠️ [LeetCode] Button already hooked");
-      } else {
-        console.log("❌ [LeetCode] No submit button found");
       }
     });
     
@@ -441,20 +395,17 @@
 
     const verdictObserver = new MutationObserver(() => {
       if (awaiting) {
-        console.log("🔍 [LeetCode] DOM changed, checking verdict... awaiting:", awaiting);
         scanVerdict();
       }
     });
     verdictObserver.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
     
-    console.log("✅ [LeetCode] All observers setup complete!");
   }
 
   // BOJ detector (submit + status pages with user correlation)
   function initBOJWatcher() {
     if (!location.hostname.includes("acmicpc.net")) return;
     
-    console.log("🔍 BOJ watcher started on:", location.pathname);
     
     let statusCheckInterval = null;
 
@@ -543,12 +494,7 @@
 
     // Watch status page for the user's latest submission on the pending problem
     function hookStatusPage() {
-      if (!location.pathname.startsWith('/status')) {
-        console.log("🔍 BOJ: Not on status page");
-        return;
-      }
-      
-      console.log("📊 BOJ status page detected");
+      if (!location.pathname.startsWith('/status')) return;
       
       let isScanning = false; // 중복 스캔 방지 플래그
       
@@ -560,8 +506,6 @@
       statusCheckInterval = setInterval(async () => {
         const pending = await getPending();
         if (pending) {
-          const tabStatus = document.hidden ? 'hidden' : 'visible';
-          console.log(`🕐 [BOJ] Background status check (tab: ${tabStatus})...`);
           
           try {
             scan();
@@ -569,28 +513,22 @@
             console.error("❌ [BOJ] Error in background status check:", error);
           }
         } else {
-          console.log("🛑 [BOJ] No pending submission, stopping status check");
           clearInterval(statusCheckInterval);
           statusCheckInterval = null;
         }
       }, 3000); // 3초마다 체크
 
       function scan() {
-        if (isScanning) {
-          console.log("⏸️ BOJ: Already scanning, skip");
-          return;
-        }
+        if (isScanning) return;
         
         isScanning = true;
         getPending().then((pending) => {
           if (!pending) {
-            console.log("📋 BOJ: No pending submission found");
             isScanning = false;
             return;
           }
           
           if (pending.createdAt + pending.ttlMs < Date.now()) {
-            console.log("⏰ BOJ: Pending submission expired");
             clearPending();
             isScanning = false;
             return;
@@ -710,14 +648,12 @@
             return;
           }
 
-          console.log("✅ BOJ verdict:", verdict);
+          console.log("🎯 [BOJ] Found verdict:", verdict);
           
           // 중복 요청 방지를 위해 observer 정지
           mo.disconnect();
           
-          // status check interval 정리
           if (statusCheckInterval) {
-            console.log("🛑 [BOJ] Clearing status check interval after success");
             clearInterval(statusCheckInterval);
             statusCheckInterval = null;
           }
@@ -765,20 +701,8 @@
 
   // Programmers detector
   function initProgrammersWatcher() {
-    console.log("🔍 [Programmers] Checking if should init watcher...");
-    console.log("🔍 [Programmers] Hostname:", location.hostname);
-    console.log("🔍 [Programmers] Pathname:", location.pathname);
-    
-    if (!location.hostname.includes("programmers.co.kr")) {
-      console.log("❌ [Programmers] Not on programmers.co.kr domain");
-      return;
-    }
-    if (!location.pathname.includes("/lessons/")) {
-      console.log("❌ [Programmers] Not on lessons page");
-      return;
-    }
-    
-    console.log("🚀 [Programmers] Watcher started!");
+    if (!location.hostname.includes("programmers.co.kr")) return;
+    if (!location.pathname.includes("/lessons/")) return;
     
     let awaiting = false;
     let checkInterval = null;
@@ -799,15 +723,8 @@
 
 
     function scanForPopupVerdict() {
-      if (!awaiting) {
-        return; // 로그 줄이기
-      }
+      if (!awaiting) return;
       
-      // 백그라운드 탭에서도 동작하도록 강제
-      const tabStatus = document.hidden ? ' (background tab)' : '';
-      console.log(`🔍 [Programmers] Scanning for popup verdict${tabStatus}...`);
-      
-      // 팝업/모달 셀렉터들 (간단하게)
       const popupSelectors = [
         '.modal',
         '.modal-content', 
@@ -821,42 +738,26 @@
       
       for (const selector of popupSelectors) {
         const popups = document.querySelectorAll(selector);
-        console.log(`🔍 [Programmers] Checking ${selector}: ${popups.length} popups`);
         
         for (const popup of popups) {
-          // 팝업이 보이는지 확인 (페이지가 백그라운드에 있어도 관대하게 체크)
           const style = getComputedStyle(popup);
           const isHidden = style.display === 'none' || style.visibility === 'hidden';
-          
-          // opacity는 체크하지 않음 (애니메이션 중일 수 있음)
-          if (isHidden) {
-            console.log("⏸️ [Programmers] Popup hidden, skipping");
-            continue;
-          }
-          
-          console.log("👀 [Programmers] Found visible popup:", popup.className || popup.tagName);
+          if (isHidden) continue;
           
           const popupText = popup.textContent || "";
-          console.log(`🔍 [Programmers] Popup text: "${popupText}"`);
-          
-          // 간단한 정답/오답 판정
           let verdict = null;
           
           if (popupText.includes("정답")) {
-            console.log("✅ [Programmers] Found '정답' in popup!");
             verdict = "SUCCESS";
           } else if (popupText.includes("틀렸") || popupText.includes("실패") || popupText.includes("오답")) {
-            console.log("❌ [Programmers] Found failure text in popup!");
             verdict = "FAIL";
           }
           
           if (verdict) {
-            console.log("🎯 [Programmers] Popup verdict:", verdict);
+            console.log("🎯 [Programmers] Found verdict:", verdict);
             const info = programmersInfo();
-            console.log("🎯 [Programmers] Problem info:", info);
             
             if (info && info.id && info.title) {
-              console.log("✅ [Programmers] Sending record...");
               sendCreate({ 
                 id: info.id, 
                 title: info.title, 
@@ -866,9 +767,7 @@
               });
               awaiting = false;
               
-              // interval 정리
               if (checkInterval) {
-                console.log("🛑 [Programmers] Clearing check interval after success");
                 clearInterval(checkInterval);
                 checkInterval = null;
               }
@@ -877,13 +776,10 @@
           }
         }
       }
-      
-      console.log("❌ [Programmers] No popup verdict found");
     }
 
     // 제출 버튼 감지
     const observer = new MutationObserver(() => {
-      console.log("🔍 [Programmers] Scanning for submit buttons...");
       
       const submitSelectors = [
         'button[class*="submit"]',
@@ -894,24 +790,19 @@
         '[class*="run-btn"]'
       ];
       
-      console.log("🔍 [Programmers] Using selectors:", submitSelectors);
       
       let btn = null;
       for (const selector of submitSelectors) {
         try {
           btn = document.querySelector(selector);
-          console.log(`🔍 [Programmers] Selector ${selector}:`, btn ? "found" : "not found");
           if (btn) break;
         } catch (e) {
-          console.log(`❌ [Programmers] Error with selector ${selector}:`, e);
         }
       }
       
       // 텍스트로 찾기
       if (!btn) {
-        console.log("🔍 [Programmers] No selector match, scanning all buttons by text...");
         const buttons = document.querySelectorAll('button');
-        console.log(`🔍 [Programmers] Found ${buttons.length} total buttons`);
         
         // 모든 버튼 텍스트를 한눈에 보기
         const buttonTexts = Array.from(buttons).map((b, i) => `${i}: "${b.textContent?.trim() || ""}"`);
