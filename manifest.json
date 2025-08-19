@@ -1,0 +1,39 @@
+{
+  "name": "AlgoStack Assistant",
+  "description": "알고리즘 풀이 기록을 빠르게 저장/조회하는 도우미",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "action": {
+    "default_title": "AlgoStack",
+    "default_popup": "src/popup.html"
+  },
+  "options_page": "src/options.html",
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting",
+    "cookies",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://api.algostack.com/*",
+    "http://localhost:8080/*",
+    "https://leetcode.com/*",
+    "https://www.acmicpc.net/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://leetcode.com/*",
+        "https://www.acmicpc.net/*"
+      ],
+      "js": ["src/content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
+
