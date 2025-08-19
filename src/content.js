@@ -169,8 +169,20 @@
 
   // LeetCode detector
   function initLeetCodeWatcher() {
-    if (!location.hostname.includes("leetcode.com")) return;
-    if (!location.pathname.includes("/problems/")) return;
+    console.log("🔍 [LeetCode] Checking if should init watcher...");
+    console.log("🔍 [LeetCode] Hostname:", location.hostname);
+    console.log("🔍 [LeetCode] Pathname:", location.pathname);
+    
+    if (!location.hostname.includes("leetcode.com")) {
+      console.log("❌ [LeetCode] Not on leetcode.com domain");
+      return;
+    }
+    if (!location.pathname.includes("/problems/")) {
+      console.log("❌ [LeetCode] Not on problems page");
+      return;
+    }
+    
+    console.log("🚀 [LeetCode] Watcher started!");
     
     let awaiting = false;
     let checkInterval = null;
@@ -311,6 +323,7 @@
 
     // Watch for submit button clicks to arm the watcher
     const observer = new MutationObserver(() => {
+      console.log("🔍 [LeetCode] Scanning for submit buttons...");
       
       // 실제 LeetCode HTML 기반 submit 버튼 셀렉터 (우선순위 순)
       const submitSelectors = [
@@ -323,13 +336,16 @@
         'button[class*="Submit"]'
       ];
       
+      console.log("🔍 [LeetCode] Using selectors:", submitSelectors);
+      
       let btn = null;
       for (const selector of submitSelectors) {
         try {
           btn = document.querySelector(selector);
+          console.log(`🔍 [LeetCode] Selector ${selector}:`, btn ? "found" : "not found");
           if (btn) break;
         } catch (e) {
-          // 일부 셀렉터는 지원되지 않을 수 있음
+          console.log(`❌ [LeetCode] Error with selector ${selector}:`, e);
         }
       }
       
@@ -347,10 +363,21 @@
       
       // 텍스트로 찾기 (최후 수단)
       if (!btn) {
+        console.log("🔍 [LeetCode] No selector match, scanning all buttons by text...");
         const buttons = document.querySelectorAll('button');
+        console.log(`🔍 [LeetCode] Found ${buttons.length} total buttons`);
+        
+        // 모든 버튼 텍스트 출력
+        const buttonTexts = Array.from(buttons).map((b, i) => `${i}: "${b.textContent?.trim() || ""}"`);
+        console.log(`🔍 [LeetCode] All button texts:`, buttonTexts);
+        
         for (const button of buttons) {
           const text = button.textContent?.toLowerCase() || "";
+          const originalText = button.textContent?.trim() || "";
+          console.log(`🔍 [LeetCode] Checking button: "${originalText}"`);
+          
           if (text.includes("submit") && !text.includes("submission")) {
+            console.log("✅ [LeetCode] Found submit button by text:", originalText);
             btn = button;
             break;
           }
@@ -358,10 +385,11 @@
       }
       
       if (btn && !btn.__algostack_hooked) {
+        console.log("✅ [LeetCode] Hooking submit button:", btn);
         btn.__algostack_hooked = true;
         
         const arm = () => {
-          console.log("🚨 LeetCode Submit clicked");
+          console.log("🚨 [LeetCode] Submit clicked!");
           awaiting = true;
           
           // 백그라운드 체크 시작
@@ -399,6 +427,10 @@
         };
         
         btn.addEventListener('click', arm, true);
+      } else if (btn && btn.__algostack_hooked) {
+        console.log("⚠️ [LeetCode] Button already hooked");
+      } else {
+        console.log("❌ [LeetCode] No submit button found");
       }
     });
     
@@ -409,10 +441,13 @@
 
     const verdictObserver = new MutationObserver(() => {
       if (awaiting) {
+        console.log("🔍 [LeetCode] DOM changed, checking verdict... awaiting:", awaiting);
         scanVerdict();
       }
     });
     verdictObserver.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+    
+    console.log("✅ [LeetCode] All observers setup complete!");
   }
 
   // BOJ detector (submit + status pages with user correlation)
