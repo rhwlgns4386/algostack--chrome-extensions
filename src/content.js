@@ -1,6 +1,12 @@
 (function () {
   console.log("🚀 AlgoStack content.js loaded!");
   
+  // 전역 Page Visibility 모니터링
+  document.addEventListener('visibilitychange', () => {
+    const status = document.hidden ? 'hidden' : 'visible';
+    console.log(`🔄 [AlgoStack] Tab visibility changed: ${status}`);
+  });
+  
   function sniff() {
     const host = location.hostname;
 
@@ -165,7 +171,9 @@
   function initLeetCodeWatcher() {
     if (!location.hostname.includes("leetcode.com")) return;
     if (!location.pathname.includes("/problems/")) return;
+    
     let awaiting = false;
+    let checkInterval = null;
 
     function lcInfo() {
       return sniff();
@@ -228,6 +236,8 @@
     }
 
     function scanVerdict() {
+      const tabStatus = document.hidden ? ' (background tab)' : '';
+      console.log(`🔍 [LeetCode] Scanning verdict${tabStatus}...`);
       
       // LeetCode 탭 구조 기반 결과 감지
       const candidates = [
@@ -285,6 +295,13 @@
             if (info && info.id && info.title) {
               sendCreate({ id: info.id, title: info.title, platform: "LEETCODE", result: verdict, url: info.url });
               awaiting = false;
+              
+              // interval 정리
+              if (checkInterval) {
+                console.log("🛑 [LeetCode] Clearing check interval after success");
+                clearInterval(checkInterval);
+                checkInterval = null;
+              }
               return;
             }
           }
@@ -347,9 +364,36 @@
           console.log("🚨 LeetCode Submit clicked");
           awaiting = true;
           
+          // 백그라운드 체크 시작
+          if (checkInterval) {
+            clearInterval(checkInterval);
+          }
+          
+          console.log("🔄 [LeetCode] Starting background check interval");
+          checkInterval = setInterval(() => {
+            if (awaiting) {
+              const tabStatus = document.hidden ? 'hidden' : 'visible';
+              console.log(`🕐 [LeetCode] Background check (tab: ${tabStatus})...`);
+              
+              try {
+                scanVerdict();
+              } catch (error) {
+                console.error("❌ [LeetCode] Error in background check:", error);
+              }
+            } else {
+              console.log("🛑 [LeetCode] Stopping background check");
+              clearInterval(checkInterval);
+              checkInterval = null;
+            }
+          }, 2000);
+          
           setTimeout(() => { 
             if (awaiting) {
-              awaiting = false; 
+              awaiting = false;
+              if (checkInterval) {
+                clearInterval(checkInterval);
+                checkInterval = null;
+              }
             }
           }, 60000);
         };
@@ -376,6 +420,8 @@
     if (!location.hostname.includes("acmicpc.net")) return;
     
     console.log("🔍 BOJ watcher started on:", location.pathname);
+    
+    let statusCheckInterval = null;
 
     const PENDING_KEY = 'algostack_boj_pending';
 
@@ -470,6 +516,29 @@
       console.log("📊 BOJ status page detected");
       
       let isScanning = false; // 중복 스캔 방지 플래그
+      
+      // 백그라운드에서도 주기적으로 체크
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+      }
+      
+      statusCheckInterval = setInterval(async () => {
+        const pending = await getPending();
+        if (pending) {
+          const tabStatus = document.hidden ? 'hidden' : 'visible';
+          console.log(`🕐 [BOJ] Background status check (tab: ${tabStatus})...`);
+          
+          try {
+            scan();
+          } catch (error) {
+            console.error("❌ [BOJ] Error in background status check:", error);
+          }
+        } else {
+          console.log("🛑 [BOJ] No pending submission, stopping status check");
+          clearInterval(statusCheckInterval);
+          statusCheckInterval = null;
+        }
+      }, 3000); // 3초마다 체크
 
       function scan() {
         if (isScanning) {
@@ -610,6 +679,13 @@
           
           // 중복 요청 방지를 위해 observer 정지
           mo.disconnect();
+          
+          // status check interval 정리
+          if (statusCheckInterval) {
+            console.log("🛑 [BOJ] Clearing status check interval after success");
+            clearInterval(statusCheckInterval);
+            statusCheckInterval = null;
+          }
           
           sendCreate({ id: pending.problemId, title: pending.title || String(pending.problemId), platform: "BOJ", result: verdict, url: pending.url });
           clearPending();
