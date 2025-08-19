@@ -670,6 +670,17 @@
     console.log("🚀 [Programmers] Watcher started!");
     
     let awaiting = false;
+    let checkInterval = null;
+    
+    // 탭 상태 모니터링
+    function isTabVisible() {
+      return !document.hidden;
+    }
+    
+    // 탭 상태 변화 감지
+    document.addEventListener('visibilitychange', () => {
+      console.log("🔄 [Programmers] Tab visibility changed:", isTabVisible() ? 'visible' : 'hidden');
+    });
 
     function programmersInfo() {
       return sniff();
@@ -678,11 +689,12 @@
 
     function scanForPopupVerdict() {
       if (!awaiting) {
-        console.log("🔍 [Programmers] Not awaiting, skip scan");
-        return;
+        return; // 로그 줄이기
       }
       
-      console.log("🔍 [Programmers] Scanning for popup verdict...");
+      // 백그라운드 탭에서도 동작하도록 강제
+      const tabStatus = document.hidden ? ' (background tab)' : '';
+      console.log(`🔍 [Programmers] Scanning for popup verdict${tabStatus}...`);
       
       // 팝업/모달 셀렉터들 (간단하게)
       const popupSelectors = [
@@ -701,14 +713,17 @@
         console.log(`🔍 [Programmers] Checking ${selector}: ${popups.length} popups`);
         
         for (const popup of popups) {
-          // 팝업이 보이는지 확인
+          // 팝업이 보이는지 확인 (페이지가 백그라운드에 있어도 관대하게 체크)
           const style = getComputedStyle(popup);
-          const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+          const isHidden = style.display === 'none' || style.visibility === 'hidden';
           
-          if (!isVisible) {
-            console.log("⏸️ [Programmers] Popup not visible, skipping");
+          // opacity는 체크하지 않음 (애니메이션 중일 수 있음)
+          if (isHidden) {
+            console.log("⏸️ [Programmers] Popup hidden, skipping");
             continue;
           }
+          
+          console.log("👀 [Programmers] Found visible popup:", popup.className || popup.tagName);
           
           const popupText = popup.textContent || "";
           console.log(`🔍 [Programmers] Popup text: "${popupText}"`);
@@ -739,6 +754,13 @@
                 url: info.url 
               });
               awaiting = false;
+              
+              // interval 정리
+              if (checkInterval) {
+                console.log("🛑 [Programmers] Clearing check interval after success");
+                clearInterval(checkInterval);
+                checkInterval = null;
+              }
               return;
             }
           }
@@ -820,10 +842,39 @@
           console.log("🚨 [Programmers] Submit clicked!");
           awaiting = true;
           
+          // 주기적으로 팝업 체크 시작 (다른 탭에 있어도 동작)
+          if (checkInterval) {
+            clearInterval(checkInterval);
+          }
+          
+          console.log("🔄 [Programmers] Starting background check interval");
+          checkInterval = setInterval(() => {
+            if (awaiting) {
+              const tabStatus = isTabVisible() ? 'visible' : 'hidden';
+              console.log(`🕐 [Programmers] Background check (tab: ${tabStatus})...`);
+              
+              // 탭 상태와 관계없이 계속 체크
+              try {
+                scanForPopupVerdict();
+              } catch (error) {
+                console.error("❌ [Programmers] Error in background check:", error);
+              }
+            } else {
+              console.log("🛑 [Programmers] Stopping background check");
+              clearInterval(checkInterval);
+              checkInterval = null;
+            }
+          }, 1500); // 1.5초마다 체크 (더 자주)
+          
+          // 30초 후 타임아웃
           setTimeout(() => { 
             if (awaiting) {
               console.log("⏰ [Programmers] Timeout - no result detected");
-              awaiting = false; 
+              awaiting = false;
+              if (checkInterval) {
+                clearInterval(checkInterval);
+                checkInterval = null;
+              }
             }
           }, 30000);
         };
@@ -839,9 +890,16 @@
     observer.observe(document.documentElement, { childList: true, subtree: true });
 
     const verdictObserver = new MutationObserver(() => {
-      console.log("🔍 [Programmers] DOM changed, checking for popup verdict... awaiting:", awaiting);
       if (awaiting) {
-        scanForPopupVerdict();
+        const tabStatus = document.hidden ? ' (background)' : '';
+        console.log(`🔍 [Programmers] DOM changed${tabStatus}, checking for popup verdict...`);
+        
+        // 백그라운드에서도 체크
+        try {
+          scanForPopupVerdict();
+        } catch (error) {
+          console.error("❌ [Programmers] Error in DOM observer:", error);
+        }
       }
     });
     verdictObserver.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
