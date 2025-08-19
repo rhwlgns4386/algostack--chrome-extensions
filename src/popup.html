@@ -314,6 +314,62 @@
       .quick-actions {
         text-align: center;
       }
+
+      /* 토글 스위치 스타일 */
+      .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+        flex-shrink: 0;
+      }
+
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 24px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      }
+
+      input:checked + .slider {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+      }
+
+      input:focus + .slider {
+        box-shadow: 0 0 1px #667eea;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(26px);
+      }
+
+      .toggle-switch:hover .slider {
+        box-shadow: 0 0 8px rgba(102, 126, 234, 0.3);
+      }
     </style>
   </head>
   <body>
@@ -340,11 +396,6 @@
           <button id="btnLogin" class="btn-primary">로그인</button>
         </div>
 
-        <div class="divider"></div>
-
-        <a href="options.html" target="_blank" class="settings-link">
-          ⚙️ 서버 설정
-        </a>
 
         <div id="authStatus" class="status" style="display: none;"></div>
       </div>
@@ -369,28 +420,16 @@
             <div class="feature-icon">🚀</div>
             <div class="feature-content">
               <div class="feature-title">자동 기록</div>
-              <div class="feature-desc">LeetCode와 BOJ에서 문제 해결 시 자동으로 기록됩니다</div>
+              <div class="feature-desc">LeetCode, BOJ, 프로그래머스에서 문제 해결 시 자동으로 기록됩니다</div>
             </div>
-            <div class="feature-status active">활성화</div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="autoRecordToggle" checked>
+              <span class="slider"></span>
+            </label>
           </div>
 
-          <div class="feature-card">
-            <div class="feature-icon">📊</div>
-            <div class="feature-content">
-              <div class="feature-title">통계 보기</div>
-              <div class="feature-desc">문제 해결 기록과 통계를 확인하세요</div>
-            </div>
-            <button class="btn-feature">보기</button>
-          </div>
         </div>
 
-        <div class="divider"></div>
-
-        <div class="quick-actions">
-          <a href="options.html" target="_blank" class="settings-link">
-            ⚙️ 설정
-          </a>
-        </div>
       </div>
     </div>
 

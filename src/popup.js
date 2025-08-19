@@ -32,10 +32,31 @@ async function initAuthStatus() {
     showScreen('mainScreen');
     const userNameEl = el('userName');
     if (userNameEl) userNameEl.textContent = auth.nickname;
+    
+    // 자동 기록 설정 로드
+    await initAutoRecordToggle();
   } else {
     // 로그인 안됨 - 로그인 화면 표시
     showScreen('loginScreen');
   }
+}
+
+async function initAutoRecordToggle() {
+  const autoRecordEnabled = await storage.getAutoRecordSetting();
+  const toggle = el('autoRecordToggle');
+  if (toggle) {
+    toggle.checked = autoRecordEnabled;
+  }
+}
+
+async function toggleAutoRecord() {
+  const toggle = el('autoRecordToggle');
+  if (!toggle) return;
+  
+  const enabled = toggle.checked;
+  await storage.setAutoRecordSetting(enabled);
+  
+  console.log(`🔧 Auto record ${enabled ? 'enabled' : 'disabled'}`);
 }
 
 async function login() {
@@ -61,18 +82,6 @@ async function login() {
   }
 }
 
-async function signup() {
-  setText("authStatus", "회원가입 중...");
-  try {
-    const email = el("email").value.trim();
-    const password = el("password").value;
-    const nickName = el("nickName").value.trim();
-    await api.signin({ email, password, nickName });
-    setText("authStatus", "회원가입 성공. 이제 로그인하세요.", "ok");
-  } catch (e) {
-    setText("authStatus", `회원가입 실패: ${e.message}`, "err");
-  }
-}
 
 async function logout() {
   try {
@@ -91,78 +100,6 @@ async function logout() {
   }
 }
 
-async function sniffProblem() {
-  setText("sniffStatus", "추출 중...");
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const resp = await chrome.tabs.sendMessage(tab.id, { type: "SNIFF_PROBLEM" });
-    if (!resp?.ok || !resp?.data) {
-      setText("sniffStatus", "지원되지 않는 페이지", "err");
-      return;
-    }
-    const d = resp.data;
-    if (d.platform) el("platform").value = d.platform;
-    if (d.id) el("pid").value = d.id;
-    if (d.title) el("title").value = d.title;
-    if (d.url) el("url").value = d.url;
-    setText("sniffStatus", "완료", "ok");
-  } catch (e) {
-    setText("sniffStatus", `실패: ${e.message}`, "err");
-  }
-}
-
-async function createRecord() {
-  setText("createStatus", "생성 중...");
-  try {
-    const id = Number(el("pid").value);
-    const title = el("title").value.trim();
-    const platform = el("platform").value;
-    const result = el("result").value;
-    const url = el("url").value.trim();
-
-    if (!id || !title || !platform || !result || !url) {
-      setText("createStatus", "필수값 누락", "err");
-      return;
-    }
-
-    await api.createAlgorithm({ id, title, platform, result, url });
-    setText("createStatus", "생성 성공", "ok");
-  } catch (e) {
-    setText("createStatus", `실패: ${e.message}`, "err");
-  }
-}
-
-function renderList(data) {
-  const box = el("list");
-  if (!data || typeof data !== "object") {
-    box.innerHTML = "<div class='muted'>결과 없음</div>";
-    return;
-  }
-  const months = Object.keys(data).sort();
-  const html = months.map((m) => {
-    const arr = data[m]?.list || [];
-    const items = arr.map((it) => {
-      return `<div>
-        <b>[${it.platform}] #${it.id}</b> ${it.title} - ${it.result}
-        <div class="muted"><a href="${it.url}" target="_blank">${it.url}</a></div>
-      </div>`;
-    }).join("<hr/>");
-    return `<div><h4>${m}</h4>${items || "<div class='muted'>없음</div>"}</div>`;
-  }).join("<hr/>");
-  box.innerHTML = html || "<div class='muted'>결과 없음</div>";
-}
-
-async function fetchHistory() {
-  const year = el("qYear").value ? Number(el("qYear").value) : undefined;
-  const month = el("qMonth").value ? Number(el("qMonth").value) : undefined;
-  const day = el("qDay").value ? Number(el("qDay").value) : undefined;
-  try {
-    const data = await api.getMyAlgorithmHistory({ year, month, day });
-    renderList(data);
-  } catch (e) {
-    el("list").innerHTML = `<div class="err">조회 실패: ${e.message}</div>`;
-  }
-}
 
 document.addEventListener("DOMContentLoaded", () => {
   // 로그인 버튼
@@ -170,6 +107,9 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // 로그아웃 버튼
   el("btnLogout")?.addEventListener("click", logout);
+  
+  // 자동 기록 토글
+  el("autoRecordToggle")?.addEventListener("change", toggleAutoRecord);
   
   // Enter 키로 로그인
   el("email")?.addEventListener("keypress", (e) => {

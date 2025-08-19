@@ -110,13 +110,25 @@
     return recentlySent.has(makeKey(payload));
   }
 
-  function sendCreate(payload) {
+  async function sendCreate(payload) {
     if (!payload || !payload.id || !payload.title || !payload.platform || !payload.result || !payload.url) {
       return;
     }
     
     if (alreadySent(payload)) {
       return;
+    }
+    
+    // 자동 기록 설정 확인
+    try {
+      const autoRecordEnabled = await chrome.storage.local.get(['algostack_auto_record']);
+      if (autoRecordEnabled.algostack_auto_record === false) {
+        console.log("⏸️ Auto record is disabled, skipping...");
+        return;
+      }
+    } catch (error) {
+      console.error("❌ Failed to check auto record setting:", error);
+      // 설정을 읽을 수 없으면 기본적으로 활성화된 것으로 처리
     }
     
     // Extension context invalidated 에러 방지
