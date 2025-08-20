@@ -200,8 +200,9 @@
       return;
     }
     
-    // solvedAt 필드 추가 (현재 시간)
-    payload.solvedAt = new Date().toISOString();
+    // solvedAt 필드 추가 (현재 시간 - 한국 시간)
+    const kstTime = new Date(Date.now() + (9 * 60 * 60 * 1000));
+    payload.solvedAt = kstTime.toISOString();
     
     if (alreadySent(payload)) {
       return;

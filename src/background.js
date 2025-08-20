@@ -71,6 +71,27 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  // 로그인 상태 동기화 메시지 처리
+  if (msg?.type === "SYNC_AUTH_FROM_WEB") {
+    const { authData } = msg;
+    if (authData) {
+      // 웹에서 받은 인증 정보를 확장프로그램 storage에 저장
+      chrome.storage.local.set({ algostack_auth: authData }).then(() => {
+        sendResponse({ ok: true });
+      }).catch(e => {
+        sendResponse({ ok: false, error: String(e) });
+      });
+    } else {
+      // 로그아웃 처리
+      chrome.storage.local.remove("algostack_auth").then(() => {
+        sendResponse({ ok: true });
+      }).catch(e => {
+        sendResponse({ ok: false, error: String(e) });
+      });
+    }
+    return true;
+  }
+
   if (msg?.type === "CREATE_RECORD") {
     const { id, title, platform, result, url, solvedAt } = msg.payload || {};
     console.log("CREATE_RECORD received:", { id, title, platform, result, url, solvedAt });

@@ -21,6 +21,7 @@
   "host_permissions": [
     "https://api.algostack.com/*",
     "http://localhost:8080/*",
+    "http://localhost:3000/*",
     "https://leetcode.com/*",
     "https://www.acmicpc.net/*",
     "https://school.programmers.co.kr/*"
@@ -33,6 +34,13 @@
         "https://school.programmers.co.kr/*"
       ],
       "js": ["src/content.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "http://localhost:3000/*"
+      ],
+      "js": ["src/content-frontend.js"],
       "run_at": "document_end"
     }
   ]

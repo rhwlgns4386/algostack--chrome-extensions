@@ -41,6 +41,41 @@ async function initAuthStatus() {
   }
 }
 
+// 주기적으로 로그인 상태 확인 (로그인 화면에서만)
+function startAuthStatusPolling() {
+  const pollInterval = setInterval(async () => {
+    const loginScreen = el('loginScreen');
+    if (loginScreen && loginScreen.style.display !== 'none') {
+      // 로그인 화면이 보이는 경우에만 상태 확인
+      const auth = await storage.get("algostack_auth", null);
+      if (auth?.nickname && auth?.expiresAt && auth.expiresAt > Date.now()) {
+        // 로그인 상태가 감지되면 메인 화면으로 전환
+        clearInterval(pollInterval);
+        await initAuthStatus();
+      }
+    } else {
+      // 메인 화면이 보이는 경우 폴링 중단
+      clearInterval(pollInterval);
+    }
+  }, 1000); // 1초마다 확인
+}
+
+// 팝업이 다시 포커스될 때 로그인 상태 재확인
+function checkAuthOnFocus() {
+  initAuthStatus();
+}
+
+// 팝업 가시성 변화 감지
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    // 팝업이 다시 보이게 되면 로그인 상태 확인
+    checkAuthOnFocus();
+  }
+});
+
+// 윈도우 포커스 이벤트
+window.addEventListener('focus', checkAuthOnFocus);
+
 async function initAutoRecordToggle() {
   const autoRecordEnabled = await storage.getAutoRecordSetting();
   const toggle = el('autoRecordToggle');
@@ -60,26 +95,9 @@ async function toggleAutoRecord() {
 }
 
 async function login() {
-  setText("authStatus", "로그인 중...", "info");
-  try {
-    const email = el("email").value.trim();
-    const password = el("password").value;
-    
-    if (!email || !password) {
-      setText("authStatus", "이메일과 비밀번호를 입력하세요", "error");
-      return;
-    }
-    
-    const data = await api.login({ email, password });
-    setText("authStatus", `환영합니다! 🎉`, "success");
-    
-    // 로그인 성공 후 메인 화면으로 전환
-    setTimeout(() => {
-      initAuthStatus();
-    }, 1500);
-  } catch (e) {
-    setText("authStatus", `로그인 실패: ${e.message}`, "error");
-  }
+  // 프론트엔드 로그인 페이지로 리다이렉트
+  const frontendUrl = 'http://localhost:3000/login?from=extension';
+  chrome.tabs.create({ url: frontendUrl });
 }
 
 
@@ -89,12 +107,6 @@ async function logout() {
     // 로그아웃 후 로그인 화면으로 전환
     showScreen('loginScreen');
     setText("authStatus", "로그아웃되었습니다", "info");
-    
-    // 입력 필드 초기화
-    const emailEl = el("email");
-    const passwordEl = el("password");
-    if (emailEl) emailEl.value = "";
-    if (passwordEl) passwordEl.value = "";
   } catch (e) {
     setText("authStatus", `로그아웃 실패: ${e.message}`, "error");
   }
@@ -111,16 +123,21 @@ document.addEventListener("DOMContentLoaded", () => {
   // 자동 기록 토글
   el("autoRecordToggle")?.addEventListener("change", toggleAutoRecord);
   
-  // Enter 키로 로그인
-  el("email")?.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") login();
-  });
-  el("password")?.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") login();
-  });
+  // chrome.storage 변화 감지
+  if (chrome?.storage?.onChanged) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes.algostack_auth) {
+        // 로그인 상태가 변경되면 UI 업데이트
+        initAuthStatus();
+      }
+    });
+  }
   
   // 초기 상태 확인
   initAuthStatus();
+  
+  // 로그인 상태 폴링 시작
+  startAuthStatusPolling();
 });
 
 
