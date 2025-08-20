@@ -47,6 +47,82 @@
   startHealthMonitoring();
   
   document.addEventListener('visibilitychange', () => {});
+
+  // 알림 표시 함수
+  function showNotification(message, type = "info") {
+    // 탭이 활성 상태인지 확인
+    const isTabVisible = !document.hidden;
+    
+    if (isTabVisible) {
+      // 활성 탭이면 페이지 내 알림 표시
+      showInPageNotification(message, type);
+    }
+    // 브라우저 알림은 background.js에서 처리됨 (항상 표시)
+  }
+
+  // 페이지 내 알림 표시 함수
+  function showInPageNotification(message, type = "info") {
+    // 기존 알림이 있다면 제거
+    const existingNotification = document.querySelector('.algostack-notification');
+    if (existingNotification) {
+      existingNotification.remove();
+    }
+
+    // 알림 요소 생성
+    const notification = document.createElement('div');
+    notification.className = 'algostack-notification';
+    notification.textContent = message;
+    
+    // 스타일 적용
+    const styles = {
+      position: 'fixed',
+      top: '20px',
+      right: '20px',
+      padding: '12px 16px',
+      borderRadius: '8px',
+      fontSize: '14px',
+      fontWeight: '500',
+      color: 'white',
+      zIndex: '999999',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+      transition: 'all 0.3s ease',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    };
+
+    // 타입별 색상 설정
+    if (type === 'success') {
+      styles.backgroundColor = '#10b981';
+    } else if (type === 'error') {
+      styles.backgroundColor = '#ef4444';
+    } else {
+      styles.backgroundColor = '#3b82f6';
+    }
+
+    // 스타일 적용
+    Object.assign(notification.style, styles);
+
+    // DOM에 추가
+    document.body.appendChild(notification);
+
+    // 애니메이션 효과
+    requestAnimationFrame(() => {
+      notification.style.transform = 'translateX(0)';
+      notification.style.opacity = '1';
+    });
+
+    // 3초 후 자동 제거
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.remove();
+          }
+        }, 300);
+      }
+    }, 3000);
+  }
   
   function sniff() {
     const host = location.hostname;
@@ -247,9 +323,11 @@
             if (resp?.ok && resp?.created === true) {
               markSent(payload);
               console.log("✅ Algorithm record saved");
+              showNotification("✅ 알고리즘 내역이 저장되었습니다!", "success");
               resolve(resp);
             } else {
               console.error("❌ Failed to save record:", resp?.error);
+              showNotification("❌ 알고리즘 내역 저장에 실패했습니다.", "error");
               reject(new Error(resp?.error || "Unknown error"));
             }
           });
@@ -270,10 +348,12 @@
             await trySendMessage(); // 재시도
           } catch (retryError) {
             console.error("❌ Retry failed:", retryError.message);
+            showNotification("❌ 알고리즘 내역 저장에 실패했습니다.", "error");
           }
         }
       } else {
         console.error("❌ Send message failed:", error.message);
+        showNotification("❌ 알고리즘 내역 저장에 실패했습니다.", "error");
       }
     }
   }

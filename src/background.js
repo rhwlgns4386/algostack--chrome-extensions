@@ -1,5 +1,60 @@
 import { api } from "./api/client.js";
 
+// 브라우저 알림 표시 함수
+async function showBrowserNotification(title, message, type = "info") {
+  try {
+    console.log("🔔 Attempting to show notification:", { title, message, type });
+    
+    // 알림 권한 확인
+    const permission = await chrome.notifications.getPermissionLevel();
+    console.log("🔔 Notification permission level:", permission);
+    
+    if (permission === "denied") {
+      console.warn("⚠️ Notification permission denied");
+      return;
+    }
+    
+    // 간단한 PNG 아이콘 사용
+
+
+    // 알림 옵션 설정 (iconUrl 필수)
+    let notificationOptions = {
+      type: "basic",
+      iconUrl: "notification-icon.png",
+      title: title,
+      message: message,
+      priority: type === "error" ? 2 : 1
+    };
+    
+    console.log("🔔 Creating notification with options:", notificationOptions);
+    
+    try {
+      const notificationId = await chrome.notifications.create(notificationOptions);
+      console.log("✅ Notification created successfully with ID:", notificationId);
+    } catch (error) {
+      console.error("❌ Failed to create notification:", error);
+    }
+    
+    // 알림이 생성되었는지 확인
+    setTimeout(async () => {
+      try {
+        const allNotifications = await chrome.notifications.getAll();
+        console.log("🔔 All active notifications:", allNotifications);
+      } catch (error) {
+        console.error("❌ Error checking notifications:", error);
+      }
+    }, 1000);
+    
+  } catch (error) {
+    console.error("❌ Error creating notification:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+  }
+}
+
 // 주기적으로 content script 상태 체크 및 자동 재주입
 async function ensureContentScriptLoaded() {
   try {
@@ -62,6 +117,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  // 테스트 알림
+  if (msg?.type === "TEST_NOTIFICATION") {
+    console.log("🔔 Received test notification request");
+    showBrowserNotification(
+      "🧪 AlgoStack 테스트 알림",
+      "브라우저 알림이 정상적으로 작동합니다!",
+      "success"
+    );
+    sendResponse({ ok: true, message: "Test notification sent" });
+    return true;
+  }
+
   if (msg?.type === "GET_CONFIG") {
     api.getConfig().then(cfg => sendResponse({ ok: true, cfg })).catch(e => sendResponse({ ok: false, error: String(e) }));
     return true;
@@ -102,9 +169,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         console.log("CREATE_RECORD API success:", success);
         if (success === true) {
           console.log("Algorithm record created successfully");
+          
+          // 브라우저 알림 표시
+          showBrowserNotification(
+            "✅ 알고리즘 내역 저장됨",
+            `${platform} - ${title} (${result === "SUCCESS" ? "성공" : "실패"})`,
+            "success"
+          );
+          
           sendResponse({ ok: true, created: true });
         } else {
           console.error("Algorithm creation returned false");
+          
+          // 실패 알림 표시
+          showBrowserNotification(
+            "❌ 알고리즘 내역 저장 실패",
+            "서버 오류가 발생했습니다.",
+            "error"
+          );
+          
           sendResponse({ ok: false, error: "Algorithm creation failed" });
         }
       })
@@ -119,6 +202,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (e.message.includes('CORS') || e.message.includes('cors')) {
           console.error("CORS error detected. Check backend CORS configuration.");
         }
+        
+        // 실패 알림 표시
+        showBrowserNotification(
+          "❌ 알고리즘 내역 저장 실패",
+          e.message.includes('401') ? "로그인이 필요합니다." : "네트워크 오류가 발생했습니다.",
+          "error"
+        );
         
         sendResponse({ ok: false, error: String(e.message || e) });
       });

@@ -16,7 +16,8 @@
     "tabs",
     "scripting",
     "cookies",
-    "activeTab"
+    "activeTab",
+    "notifications"
   ],
   "host_permissions": [
     "https://api.algostack.com/*",

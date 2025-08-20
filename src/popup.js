@@ -112,6 +112,26 @@ async function logout() {
   }
 }
 
+async function testNotification() {
+  try {
+    console.log("🔔 Testing notification from popup...");
+    
+    // background script에 테스트 알림 요청
+    chrome.runtime.sendMessage({ 
+      type: "TEST_NOTIFICATION" 
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error("❌ Test notification failed:", chrome.runtime.lastError.message);
+      } else {
+        console.log("✅ Test notification sent:", response);
+      }
+    });
+    
+  } catch (error) {
+    console.error("❌ Error testing notification:", error);
+  }
+}
+
 
 document.addEventListener("DOMContentLoaded", () => {
   // 로그인 버튼
@@ -122,6 +142,9 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // 자동 기록 토글
   el("autoRecordToggle")?.addEventListener("change", toggleAutoRecord);
+  
+  // 알림 테스트 버튼
+  el("btnTestNotification")?.addEventListener("click", testNotification);
   
   // chrome.storage 변화 감지
   if (chrome?.storage?.onChanged) {
