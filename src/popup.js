@@ -57,7 +57,7 @@ function startAuthStatusPolling() {
       // 메인 화면이 보이는 경우 폴링 중단
       clearInterval(pollInterval);
     }
-  }, 1000); // 1초마다 확인
+  }, 500); // 500ms마다 확인 - 더 빠른 응답
 }
 
 // 팝업이 다시 포커스될 때 로그인 상태 재확인
@@ -107,28 +107,35 @@ async function logout() {
     // 로그아웃 후 로그인 화면으로 전환
     showScreen('loginScreen');
     setText("authStatus", "로그아웃되었습니다", "info");
+    
+    // 웹사이트에 로그아웃 신호 전송 (content script를 통해)
+    try {
+      const tabs = await chrome.tabs.query({
+        url: ["http://localhost:3000/*", "https://your-domain.com/*"]
+      });
+      
+      for (const tab of tabs) {
+        chrome.tabs.sendMessage(tab.id, {
+          type: "NOTIFY_WEBSITE_LOGOUT"
+        }).catch(() => {
+          // content script가 없을 수 있으므로 에러 무시
+        });
+      }
+    } catch (error) {
+      console.log("웹사이트 로그아웃 알림 전송 실패:", error);
+    }
+    
   } catch (e) {
     setText("authStatus", `로그아웃 실패: ${e.message}`, "error");
   }
 }
 
-async function testNotification() {
+async function openHomepage() {
   try {
-    console.log("🔔 Testing notification from popup...");
-    
-    // background script에 테스트 알림 요청
-    chrome.runtime.sendMessage({ 
-      type: "TEST_NOTIFICATION" 
-    }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error("❌ Test notification failed:", chrome.runtime.lastError.message);
-      } else {
-        console.log("✅ Test notification sent:", response);
-      }
-    });
-    
+    const frontendUrl = 'http://localhost:3000';
+    chrome.tabs.create({ url: frontendUrl });
   } catch (error) {
-    console.error("❌ Error testing notification:", error);
+    console.error("❌ Error opening homepage:", error);
   }
 }
 
@@ -143,8 +150,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // 자동 기록 토글
   el("autoRecordToggle")?.addEventListener("change", toggleAutoRecord);
   
-  // 알림 테스트 버튼
-  el("btnTestNotification")?.addEventListener("click", testNotification);
+  // 홈페이지 열기 버튼
+  el("btnOpenHomepage")?.addEventListener("click", openHomepage);
   
   // chrome.storage 변화 감지
   if (chrome?.storage?.onChanged) {

@@ -47,6 +47,28 @@
   startHealthMonitoring();
   
   document.addEventListener('visibilitychange', () => {});
+  
+  // 웹사이트에서 로그아웃 메시지 수신
+  window.addEventListener('message', (event) => {
+    // 보안을 위해 origin 검증
+    if (event.origin !== window.location.origin) {
+      return;
+    }
+    
+    if (event.data && event.data.type === 'ALGOSTACK_LOGOUT' && event.data.source === 'web') {
+      console.log('🔴 Website logout detected, clearing extension auth');
+      
+      // 확장프로그램 storage 정리
+      if (chrome.storage && chrome.storage.local) {
+        chrome.storage.local.remove(['algostack_auth'], () => {
+          console.log('✅ Extension auth data cleared');
+          
+          // 페이지에 알림 표시
+          showNotification('🔴 로그아웃되었습니다', 'info');
+        });
+      }
+    }
+  });
 
   // 알림 표시 함수
   function showNotification(message, type = "info") {
