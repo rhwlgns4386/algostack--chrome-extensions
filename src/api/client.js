@@ -199,13 +199,13 @@ export const api = {
     return res.json();
   },
 
-  async createAlgorithm({ id, title, platform, result, url }) {
-    console.log("createAlgorithm called with:", { id, title, platform, result, url });
+  async createAlgorithm({ id, title, platform, result, url, solvedAt }) {
+    console.log("createAlgorithm called with:", { id, title, platform, result, url, solvedAt });
     try {
       const res = await request("/algorithm", {
         method: "POST",
         auth: true,
-        body: { id, title, platform, result, url }
+        body: { id, title, platform, result, url, solvedAt }
       });
       console.log("createAlgorithm response status:", res.status);
       console.log("createAlgorithm response ok:", res.ok);

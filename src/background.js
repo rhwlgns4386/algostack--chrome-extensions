@@ -72,11 +72,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg?.type === "CREATE_RECORD") {
-    const { id, title, platform, result, url } = msg.payload || {};
-    console.log("CREATE_RECORD received:", { id, title, platform, result, url });
+    const { id, title, platform, result, url, solvedAt } = msg.payload || {};
+    console.log("CREATE_RECORD received:", { id, title, platform, result, url, solvedAt });
     
     // API 호출 및 결과 처리
-    api.createAlgorithm({ id, title, platform, result, url })
+    api.createAlgorithm({ id, title, platform, result, url, solvedAt })
       .then((success) => {
         console.log("CREATE_RECORD API success:", success);
         if (success === true) {

@@ -200,6 +200,9 @@
       return;
     }
     
+    // solvedAt 필드 추가 (현재 시간)
+    payload.solvedAt = new Date().toISOString();
+    
     if (alreadySent(payload)) {
       return;
     }
