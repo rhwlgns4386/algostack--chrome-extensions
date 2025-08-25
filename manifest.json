@@ -20,9 +20,7 @@
     "notifications"
   ],
   "host_permissions": [
-    "https://api.algostack.com/*",
-    "http://localhost:8080/*",
-    "http://localhost:3000/*",
+    "https://www.algostack.site/*",
     "https://leetcode.com/*",
     "https://www.acmicpc.net/*",
     "https://school.programmers.co.kr/*"
@@ -39,7 +37,7 @@
     },
     {
       "matches": [
-        "http://localhost:3000/*"
+        "https://www.algostack.site/*"
       ],
       "js": ["src/content-frontend.js"],
       "run_at": "document_end"

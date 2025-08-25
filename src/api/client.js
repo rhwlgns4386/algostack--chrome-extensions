@@ -2,7 +2,7 @@ import { storage } from "../storage.js";
 import { now, inMs, toQuery } from "../utils.js";
 
 const DEFAULT_CONFIG = {
-  baseUrl: "http://localhost:8080"
+  baseUrl: "https://www.algostack.site"
 };
 
 const KEYS = {
@@ -35,7 +35,7 @@ function getCookieUrl(baseUrl) {
     const u = new URL(baseUrl);
     return `${u.protocol}//${u.host}/`;
   } catch {
-    return "http://localhost:8080/";
+    return "https://www.algostack.site/";
   }
 }
 
@@ -47,15 +47,11 @@ async function getRefreshTokenCookie(baseUrl) {
 
 async function refreshAccessToken() {
   const { baseUrl } = await getConfig();
-  const rt = await getRefreshTokenCookie(baseUrl);
-  if (!rt) throw new Error("NO_REFRESH_TOKEN");
-
-  const res = await fetch(`${baseUrl}/auth/refresh`, {
+  
+  // 리프레시 토큰은 쿠키로만 전송 (헤더 없음)
+  const res = await fetch(`${baseUrl}/api/auth/refresh`, {
     method: "POST",
-    headers: {
-      "Authorization": `Bearer ${rt}`
-    },
-    credentials: "include"
+    credentials: "include" // 쿠키만 전송
   });
   if (!res.ok) throw new Error(`REFRESH_FAILED_${res.status}`);
   const data = await res.json();
@@ -154,7 +150,7 @@ export const api = {
 
   async login({ email, password }) {
     const { baseUrl } = await getConfig();
-    const res = await fetch(`${baseUrl}/auth/login`, {
+    const res = await fetch(`${baseUrl}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -171,7 +167,7 @@ export const api = {
   },
 
   async signin({ email, password, nickName }) {
-    const res = await request("/auth/signin", {
+    const res = await request("/api/auth/signin", {
       method: "POST",
       body: { email, password, nickName }
     });
@@ -180,29 +176,25 @@ export const api = {
 
   async logout() {
     const { baseUrl } = await getConfig();
-    const rt = await getRefreshTokenCookie(baseUrl);
-    if (!rt) {
-      await clearAuth();
-      return true;
-    }
-    const res = await fetch(`${baseUrl}/auth/logout`, {
+    
+    // 로그아웃도 쿠키로만 전송 (헤더 없음)
+    const res = await fetch(`${baseUrl}/api/auth/logout`, {
       method: "DELETE",
-      headers: { "Authorization": `Bearer ${rt}` },
-      credentials: "include"
+      credentials: "include" // 쿠키만 전송
     });
     await clearAuth();
     return res.ok;
   },
 
   async getAlgorithmHistory({ year, month, day } = {}) {
-    const res = await request("/algorithm", { auth: true, query: { year, month, day } });
+    const res = await request("/api/algorithm", { auth: true, query: { year, month, day } });
     return res.json();
   },
 
   async createAlgorithm({ id, title, platform, result, url, solvedAt }) {
     console.log("createAlgorithm called with:", { id, title, platform, result, url, solvedAt });
     try {
-      const res = await request("/algorithm", {
+      const res = await request("/api/algorithm", {
         method: "POST",
         auth: true,
         body: { id, title, platform, result, url, solvedAt }
@@ -226,19 +218,19 @@ export const api = {
   },
 
   async getSpecificAlgorithmHistory({ platform, id }) {
-    const res = await request(`/algorithm/${encodeURIComponent(platform)}/${encodeURIComponent(id)}`, {
+    const res = await request(`/api/algorithm/${encodeURIComponent(platform)}/${encodeURIComponent(id)}`, {
       auth: true
     });
     return res.json();
   },
 
   async getMyAlgorithmHistory({ year, month, day } = {}) {
-    const res = await request("/my/algorithm", { auth: true, query: { year, month, day } });
+    const res = await request("/api/my/algorithm", { auth: true, query: { year, month, day } });
     return res.json();
   },
 
   async getMySpecificAlgorithmHistory({ platform, id }) {
-    const res = await request(`/my/algorithm/platform${encodeURIComponent(platform)}/id/${encodeURIComponent(id)}`, {
+    const res = await request(`/api/my/algorithm/platform${encodeURIComponent(platform)}/id/${encodeURIComponent(id)}`, {
       auth: true
     });
     return res.json();

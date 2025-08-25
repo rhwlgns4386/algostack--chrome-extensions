@@ -96,7 +96,7 @@ async function toggleAutoRecord() {
 
 async function login() {
   // 프론트엔드 로그인 페이지로 리다이렉트
-  const frontendUrl = 'http://localhost:3000/login?from=extension';
+  const frontendUrl = 'https://www.algostack.site/login?from=extension';
   chrome.tabs.create({ url: frontendUrl });
 }
 
@@ -111,7 +111,7 @@ async function logout() {
     // 웹사이트에 로그아웃 신호 전송 (content script를 통해)
     try {
       const tabs = await chrome.tabs.query({
-        url: ["http://localhost:3000/*", "https://your-domain.com/*"]
+        url: ["https://www.algostack.site/*"]
       });
       
       for (const tab of tabs) {
@@ -132,7 +132,7 @@ async function logout() {
 
 async function openHomepage() {
   try {
-    const frontendUrl = 'http://localhost:3000';
+    const frontendUrl = 'https://www.algostack.site';
     chrome.tabs.create({ url: frontendUrl });
   } catch (error) {
     console.error("❌ Error opening homepage:", error);

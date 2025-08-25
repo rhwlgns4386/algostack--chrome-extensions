@@ -215,14 +215,14 @@
         <div class="form-group">
           <label class="form-label" for="baseUrl">API 서버 주소</label>
           <div class="form-row">
-            <input id="baseUrl" type="url" placeholder="http://localhost:8080" autocomplete="off">
+            <input id="baseUrl" type="url" placeholder="https://www.algostack.site" autocomplete="off">
             <button id="btnSave" class="btn-primary">저장</button>
           </div>
           <div class="help-text">
             AlgoStack 백엔드 서버의 주소를 입력하세요. 로컬 개발환경에서는 기본값을 사용하시면 됩니다.
           </div>
           <div class="example">
-            예시: http://localhost:8080 또는 https://api.algostack.com
+            예시: https://www.algostack.site
           </div>
         </div>
 
@@ -263,7 +263,7 @@
       async function init() {
         try {
           const cfg = await api.getConfig();
-          baseUrl.value = cfg.baseUrl || "http://localhost:8080";
+          baseUrl.value = cfg.baseUrl || "https://www.algostack.site";
         } catch (e) {
           setStatus(`설정을 불러올 수 없습니다: ${e.message}`, "error");
         }
