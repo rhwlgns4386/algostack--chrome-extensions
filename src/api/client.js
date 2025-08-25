@@ -147,6 +147,7 @@ async function request(path, { method = "GET", body, auth = false, query = {}, m
 export const api = {
   getConfig,
   setConfig,
+  getValidAccessToken,
 
   async login({ email, password }) {
     const { baseUrl } = await getConfig();
